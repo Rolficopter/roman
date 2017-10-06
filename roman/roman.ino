@@ -1,3 +1,12 @@
+typedef enum {
+  motor1,
+  motor2
+} motor_t;
+typedef enum {
+  forward,
+  backward
+} direction_t;
+
 // Motor 1 (right)
 const int motor1Dir1 = 22;
 const int motor1Dir2 = 23;
@@ -16,15 +25,7 @@ char current_angle = 0;
 int current_speed = 0;
 int current_motor1Speed = 0;
 int current_motor2Speed = 0;
-
-typedef enum {
-  motor1,
-  motor2
-} motor_t;
-typedef enum {
-  forward,
-  backward
-} direction_t;
+direction_t current_direction = forward;
 
 void setup_motors() {
   pinMode(motor1Dir1, OUTPUT);
@@ -114,11 +115,21 @@ void drive(int speed, char angle) {
     current_motor1Speed = speed;
     current_motor2Speed = speed;
   } else if ( angle < 0 ) {
-    current_motor1Speed = speed;
-    current_motor2Speed = map(angle, 0, -90, speed, 0);
+    if ( current_direction == forward ) {
+      current_motor1Speed = speed;
+      current_motor2Speed = map(angle, 0, -90, speed, 0);
+    } else {
+      current_motor1Speed = map(angle, 0, -90, speed, 0);
+      current_motor2Speed = speed;
+    }
   } else if ( angle > 0 ) {
-    current_motor1Speed = map(angle, 0, 90, speed, 0);
-    current_motor2Speed = speed; 
+    if ( current_direction == forward ) {
+      current_motor1Speed = map(angle, 0, 90, speed, 0);
+      current_motor2Speed = speed; 
+    } else {
+      current_motor1Speed = speed;
+      current_motor2Speed = map(angle, 0, 90, speed, 0);
+    }
   } else {
     debug("invalid angle");
   }
@@ -133,6 +144,7 @@ void drive_angle(int angle) {
   drive(current_speed, angle);
 }
 void drive_direction(direction_t dir) {
+  current_direction = dir;
   set_motor_direction(motor1, dir);
   set_motor_direction(motor2, dir);
 }
@@ -166,13 +178,20 @@ void setup() {
   set_motor_speed(motor2, 0);
 }
 
+unsigned long lastCommandTime;
 void loop() {
   // put your main code here, to run repeatedly:
 
   // bluetooth
   if ( Serial1.available() <= 0 ) {
+
+    if ( lastCommandTime+1000 < millis() ) {
+      debug("stopping. No command for one second.");
+      drive_speed(0);
+    }
     return;
   }
+  lastCommandTime = millis();
 
   String input = Serial1.readStringUntil('\0');
   debug("BT REC: " + input);
@@ -183,7 +202,7 @@ void loop() {
       value = map(value, 0, 100, 0, 255);
       drive_direction(forward);
     } else {
-      value = map(value, -100, 0, 0, 255);
+      value = map(value, 0, -100, 0, 255);
       drive_direction(backward);
     }
     drive_speed(value);
