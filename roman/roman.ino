@@ -90,16 +90,24 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  Serial.println("Speed 255");
   set_motor_speed(motor1, 255);
   set_motor_speed(motor2, 255);
 
-  delay(3000);
+  delay(1000);
 
-  Serial.println("Speed 0");
   set_motor_speed(motor1, 0);
   set_motor_speed(motor2, 0);
 
-  delay(3000);
+  delay(1000);
+
+  set_motor_speed(motor1, 128);
+  set_motor_speed(motor2, 255);
+
+  delay(1000);
+  
+  set_motor_speed(motor1, 255);
+  set_motor_speed(motor2, 128);
+
+  delay(1000);
 }
 
