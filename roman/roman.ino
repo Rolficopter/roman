@@ -1,15 +1,20 @@
-// Motor 1
+// Motor 1 (right)
 const int motor1Dir1 = 22;
 const int motor1Dir2 = 23;
 const int motor1Speed = 4;
 const int motor1SpeedMes = 2;
 volatile int motor1Counter = 0;
-// Motor 2
+// Motor 2 (left)
 const int motor2Dir1 = 24;
 const int motor2Dir2 = 25;
 const int motor2Speed = 5;
 const int motor2SpeedMes = 3;
 volatile int motor2Counter = 0;
+// BT Control
+const int command_length = 8; // bytes
+int current_angle = 0;
+int current_motor1Speed = 0;
+int current_motor2Speed = 0;
 
 typedef enum {
   motor1,
@@ -100,33 +105,62 @@ void setup_bluetooth() {
   Serial1.begin(9600);
 }
 
+void drive(int speed, int angle) {
+  current_angle = angle;
+
+  if ( angle == 0 ) {
+    current_motor1Speed = speed;
+    current_motor2Speed = speed;
+  } else if ( angle < 0 ) {
+    current_motor1Speed = map(angle, 0, -90, speed, 0);
+    current_motor2Speed = speed;
+  } else if ( angle > 0 ) {
+    current_motor1Speed = speed;
+    current_motor2Speed = map(angle, 0, 90, speed, 0);
+  } else {
+    debug("WHAT ANGLE IS THIS?!");
+  }
+}
+
+void debug(const String &msg) {
+  Serial.println(msg);
+  Serial1.println(msg);
+}
+void debug(char c) {
+  debug(String(c));
+}
+void debug(int i) {
+  debug(String(i));
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   setup_motors();
   setup_motor_speed_counters();
+  setup_bluetooth();
 
-  Serial.println("roman ready.");
+  debug("roman ready.");
 
   set_motor_direction(motor1, forward);
   set_motor_direction(motor2, forward);
-  set_motor_speed(motor1, 255);
-  set_motor_speed(motor2, 255);
+  set_motor_speed(motor1, 0);
+  set_motor_speed(motor2, 0);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  Serial.println("Motor speeds:");
-  Serial.println(motor1Counter);
-  Serial.println(motor2Counter);
+  debug("Motor speeds:");
+  debug(motor1Counter);
+  debug(motor2Counter);
   reset_motor_counters();
-  Serial.println(" ");
+  debug(" ");
 
   // bluetooth
-  if ( Serial1.available() > 0 ) {
-    int cmd = Serial1.read();
-    int para1 = Serial1.read();
+  if ( Serial1.available() >= command_length ) {
+    const int cmd = Serial1.read();
+    const int para1 = Serial1.read();
     int para2 = Serial1.read();
     int para3 = Serial1.read();
     int para4 = Serial1.read();
@@ -134,15 +168,24 @@ void loop() {
     int para6 = Serial1.read();
     int para7 = Serial1.read();
 
-    Serial.println("BT READ:");
-    Serial.println(cmd);    
-    Serial.println(para1);
-    Serial.println(para2);
-    Serial.println(para3);
-    Serial.println(para4);
-    Serial.println(para5);
-    Serial.println(para6);
-    Serial.println(para7);
+    debug("BT READ:");
+    debug(cmd);
+    debug(para1);
+    debug(para2);
+    debug(para3);
+    debug(para4);
+    debug(para5);
+    debug(para6);
+    debug(para7);
+
+    switch ( cmd ) {
+      case 0x01:
+        drive(para1, para2);
+        break;
+      default:
+        debug("unknown command.");
+        break;
+    }
   }
 
   delay(1000);
