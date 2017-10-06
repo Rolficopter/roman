@@ -2,10 +2,14 @@
 const int motor1Dir1 = 22;
 const int motor1Dir2 = 23;
 const int motor1Speed = 2;
+const int motor1SpeedMes = 3;
+int motor1Counter = 0;
 // Motor 2
 const int motor2Dir1 = 24;
 const int motor2Dir2 = 25;
-const int motor2Speed = 3;
+const int motor2Speed = 4;
+const int motor2SpeedMes = 5;
+int motor2Counter = 0;
 
 typedef enum {
   motor1,
@@ -76,38 +80,42 @@ void set_motor_speed(motor_t motor, int value) {
   analogWrite(pin, value);
 }
 
+void intr_count_motor1_speed() {
+  motor1Counter++;
+}
+void intr_count_motor2_speed() {
+  motor2Counter++;
+}
+
+void setup_motor_speed_counters() {
+  attachInterrupt(motor1SpeedMes, intr_count_motor1_speed, RISING);
+  attachInterrupt(motor2SpeedMes, intr_count_motor2_speed, RISING);
+}
+void reset_motor_counters() {
+  motor1Counter = 0;
+  motor2Counter = 0;
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   setup_motors();
+  setup_motor_speed_counters();
 
   Serial.println("roman ready.");
 
   set_motor_direction(motor1, forward);
   set_motor_direction(motor2, forward);
+  set_motor_speed(motor1, 255);
+  set_motor_speed(motor2, 255);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
-  set_motor_speed(motor1, 255);
-  set_motor_speed(motor2, 255);
-
-  delay(1000);
-
-  set_motor_speed(motor1, 0);
-  set_motor_speed(motor2, 0);
-
-  delay(1000);
-
-  set_motor_speed(motor1, 128);
-  set_motor_speed(motor2, 255);
-
-  delay(1000);
   
-  set_motor_speed(motor1, 255);
-  set_motor_speed(motor2, 128);
-
-  delay(1000);
+  delay(100);
+  Serial.println("Motor1: " + motor1Counter);
+  Serial.println("Motor2: " + motor2Counter);
+  reset_motor_counters();
 }
 
