@@ -82,7 +82,6 @@ void set_motor_speed(motor_t motor, int value) {
 
 void intr_count_motor1_speed() {
   motor1Counter++;
-  Serial.println("Motor1");
 }
 void intr_count_motor2_speed() {
   motor2Counter++;
@@ -113,11 +112,13 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  
-  delay(1000);
-  //Serial.println("Motor1: " + motor1Counter);
+
+  Serial.println("Motor speeds:");
   Serial.println(motor1Counter);
-  //Serial.println("Motor2: " + motor2Counter);
+  Serial.println(motor2Counter);
+  Serial.println(" ");
   reset_motor_counters();
+
+  delay(1000);
 }
 
