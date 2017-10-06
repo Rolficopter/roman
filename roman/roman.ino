@@ -2,8 +2,9 @@
 const int motor1Dir1 = 22;
 const int motor1Dir2 = 23;
 const int motor1Speed = 2;
-const int motor2Dir1 = 25;
-const int motor2Dir2 = 26;
+// Motor 2
+const int motor2Dir1 = 24;
+const int motor2Dir2 = 25;
 const int motor2Speed = 3;
 
 typedef enum {
