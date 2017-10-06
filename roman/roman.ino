@@ -114,11 +114,11 @@ void drive(int speed, char angle) {
     current_motor1Speed = speed;
     current_motor2Speed = speed;
   } else if ( angle < 0 ) {
-    current_motor1Speed = map(angle, 0, -90, speed, 0);
-    current_motor2Speed = speed;
-  } else if ( angle > 0 ) {
     current_motor1Speed = speed;
-    current_motor2Speed = map(angle, 0, 90, speed, 0);
+    current_motor2Speed = map(angle, 0, -90, speed, 0);
+  } else if ( angle > 0 ) {
+    current_motor1Speed = map(angle, 0, 90, speed, 0);
+    current_motor2Speed = speed; 
   } else {
     debug("invalid angle");
   }
@@ -131,6 +131,10 @@ void drive_speed(int speed) {
 }
 void drive_angle(int angle) {
   drive(current_speed, angle);
+}
+void drive_direction(direction_t dir) {
+  set_motor_direction(motor1, dir);
+  set_motor_direction(motor2, dir);
 }
 
 void debug(const String &msg) {
@@ -165,31 +169,28 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  reset_motor_counters();
-
   // bluetooth
-  if ( Serial1.available() >= command_length ) {
-    byte cmd[command_length];
-    Serial1.readBytes(cmd, command_length);
-    
-    debug("BT READ:");
-    for ( int i = 0; i < command_length; i++ ) {
-      debug(cmd[i]);
-    }
-
-    switch ( cmd[0] ) {
-      case 0x01:
-        drive_speed(cmd[1]);
-        break;
-      case 0x02:
-        drive_angle(cmd[1]);
-        break;
-      default:
-        debug("unknown command.");
-        break;
-    }
+  if ( Serial1.available() <= 0 ) {
+    return;
   }
 
-  delay(10);
+  String input = Serial1.readStringUntil('\0');
+  debug("BT REC: " + input);
+
+  int value = input.substring(1).toInt();
+  if ( input.startsWith("s") ) {
+    if ( value >= 0 ) {
+      value = map(value, 0, 100, 0, 255);
+      drive_direction(forward);
+    } else {
+      value = map(value, -100, 0, 0, 255);
+      drive_direction(backward);
+    }
+    drive_speed(value);
+  } else if ( input.startsWith("a") ) {
+    drive_angle(value);
+  } else {
+    debug("unknown command: " + input);
+  }
 }
 
