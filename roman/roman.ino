@@ -179,19 +179,22 @@ void setup() {
 }
 
 unsigned long lastCommandTime;
+int connected = 0;
 void loop() {
   // put your main code here, to run repeatedly:
 
   // bluetooth
   if ( Serial1.available() <= 0 ) {
 
-    if ( lastCommandTime+1000 < millis() ) {
+    if ( connected == 1 && lastCommandTime+1000 < millis() ) {
       debug("stopping. No command for one second.");
       drive_speed(0);
+      connected = 0;
     }
     return;
   }
   lastCommandTime = millis();
+  connected = 1;
 
   String input = Serial1.readStringUntil('\0');
   debug("BT REC: " + input);
