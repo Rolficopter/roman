@@ -12,7 +12,7 @@ const int motor2SpeedMes = 3;
 volatile int motor2Counter = 0;
 // BT Control
 const int command_length = 8; // bytes
-int current_angle = 0;
+char current_angle = 0;
 int current_speed = 0;
 int current_motor1Speed = 0;
 int current_motor2Speed = 0;
@@ -106,7 +106,7 @@ void setup_bluetooth() {
   Serial1.begin(9600);
 }
 
-void drive(int speed, int angle) {
+void drive(int speed, char angle) {
   current_angle = angle;
   current_speed = speed;
 
@@ -120,8 +120,11 @@ void drive(int speed, int angle) {
     current_motor1Speed = speed;
     current_motor2Speed = map(angle, 0, 90, speed, 0);
   } else {
-    debug("WHAT ANGLE IS THIS?!");
+    debug("invalid angle");
   }
+
+  set_motor_speed(motor1, current_motor1Speed);
+  set_motor_speed(motor2, current_motor2Speed);
 }
 void drive_speed(int speed) {
   drive(speed, current_angle);
