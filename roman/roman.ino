@@ -13,6 +13,7 @@ volatile int motor2Counter = 0;
 // BT Control
 const int command_length = 8; // bytes
 int current_angle = 0;
+int current_speed = 0;
 int current_motor1Speed = 0;
 int current_motor2Speed = 0;
 
@@ -107,6 +108,7 @@ void setup_bluetooth() {
 
 void drive(int speed, int angle) {
   current_angle = angle;
+  current_speed = speed;
 
   if ( angle == 0 ) {
     current_motor1Speed = speed;
@@ -121,6 +123,12 @@ void drive(int speed, int angle) {
     debug("WHAT ANGLE IS THIS?!");
   }
 }
+void drive_speed(int speed) {
+  drive(speed, current_angle);
+}
+void drive_angle(int angle) {
+  drive(current_speed, angle);
+}
 
 void debug(const String &msg) {
   Serial.println(msg);
@@ -131,6 +139,9 @@ void debug(char c) {
 }
 void debug(int i) {
   debug(String(i));
+}
+void debug(byte b) {
+  debug(String(b));
 }
 
 void setup() {
@@ -151,36 +162,24 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  debug("Motor speeds:");
-  debug(motor1Counter);
-  debug(motor2Counter);
   reset_motor_counters();
-  debug(" ");
 
   // bluetooth
   if ( Serial1.available() >= command_length ) {
-    const int cmd = Serial1.read();
-    const int para1 = Serial1.read();
-    int para2 = Serial1.read();
-    int para3 = Serial1.read();
-    int para4 = Serial1.read();
-    int para5 = Serial1.read();
-    int para6 = Serial1.read();
-    int para7 = Serial1.read();
-
+    byte cmd[command_length];
+    Serial1.readBytes(cmd, command_length);
+    
     debug("BT READ:");
-    debug(cmd);
-    debug(para1);
-    debug(para2);
-    debug(para3);
-    debug(para4);
-    debug(para5);
-    debug(para6);
-    debug(para7);
+    for ( int i = 0; i < command_length; i++ ) {
+      debug(cmd[i]);
+    }
 
-    switch ( cmd ) {
+    switch ( cmd[0] ) {
       case 0x01:
-        drive(para1, para2);
+        drive_speed(cmd[1]);
+        break;
+      case 0x02:
+        drive_angle(cmd[1]);
         break;
       default:
         debug("unknown command.");
@@ -188,6 +187,6 @@ void loop() {
     }
   }
 
-  delay(1000);
+  delay(10);
 }
 
