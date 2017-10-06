@@ -96,6 +96,10 @@ void reset_motor_counters() {
   motor2Counter = 0;
 }
 
+void setup_bluetooth() {
+  Serial1.begin(9600);
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -116,8 +120,30 @@ void loop() {
   Serial.println("Motor speeds:");
   Serial.println(motor1Counter);
   Serial.println(motor2Counter);
-  Serial.println(" ");
   reset_motor_counters();
+  Serial.println(" ");
+
+  // bluetooth
+  if ( Serial1.available() > 0 ) {
+    int cmd = Serial1.read();
+    int para1 = Serial1.read();
+    int para2 = Serial1.read();
+    int para3 = Serial1.read();
+    int para4 = Serial1.read();
+    int para5 = Serial1.read();
+    int para6 = Serial1.read();
+    int para7 = Serial1.read();
+
+    Serial.println("BT READ:");
+    Serial.println(cmd);    
+    Serial.println(para1);
+    Serial.println(para2);
+    Serial.println(para3);
+    Serial.println(para4);
+    Serial.println(para5);
+    Serial.println(para6);
+    Serial.println(para7);
+  }
 
   delay(1000);
 }
