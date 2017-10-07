@@ -1,3 +1,6 @@
+#include <PID_v1.h>
+
+
 typedef enum {
   motor1,
   motor2
@@ -13,12 +16,26 @@ const int motor1Dir2 = 23;
 const int motor1Speed = 4;
 const int motor1SpeedMes = 2;
 volatile int motor1Counter = 0;
+double motor_1_output_speed = 0; // Set via PID
+
 // Motor 2 (left)
 const int motor2Dir1 = 24;
 const int motor2Dir2 = 25;
 const int motor2Speed = 5;
 const int motor2SpeedMes = 3;
 volatile int motor2Counter = 0;
+double motor_2_output_speed = 0; // Set via PID
+
+// Speed Measurement
+unsigned long last_loop_millis = millis();
+double motor_1_input_speed = 0; // Input for PID
+double motor_2_input_speed = 0; // Input for PID
+// Motor PID
+double motor1_target_speed = 0; // change value of these to accelerate or decelrate the motor
+double motor2_target_speed = 0;
+PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor1_target_speed, 2, 5, 1, DIRECT);
+PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor2_target_speed, 2, 5, 1, DIRECT);
+
 // BT Control
 const int command_length = 8; // bytes
 char current_angle = 0;
@@ -26,6 +43,10 @@ int current_speed = 0;
 int current_motor1Speed = 0;
 int current_motor2Speed = 0;
 direction_t current_direction = forward;
+// BT command parsing
+unsigned long lastCommandTime;
+int connected = 0;
+
 
 void setup_motors() {
   pinMode(motor1Dir1, OUTPUT);
@@ -71,7 +92,7 @@ void set_motor_direction(motor_t motor, direction_t dir) {
   digitalWrite(pin2, pin2Voltage);
 }
 
-void set_motor_speed(motor_t motor, int value) {
+void set_motor_output_speed(motor_t motor, int value) {
   int pin = -1;
   switch ( motor ) {
     case motor1:
@@ -85,6 +106,24 @@ void set_motor_speed(motor_t motor, int value) {
   }
 
   analogWrite(pin, value);
+}
+
+void write_motor_outputs() {
+  set_motor_output_speed(motor1, motor_1_output_speed);
+  set_motor_output_speed(motor2, motor_2_output_speed);
+}
+
+void set_motor_target_speed(motor_t motor, int value) {
+  switch ( motor ) {
+    case motor1:
+      motor1_target_speed = value;
+      break;
+    case motor2:
+      motor2_target_speed = value;
+      break;
+    default:
+      return;
+  }
 }
 
 void intr_count_motor1_speed() {
@@ -105,6 +144,11 @@ void reset_motor_counters() {
 
 void setup_bluetooth() {
   Serial1.begin(9600);
+}
+
+void setup_pid() {
+  motor1_pid.SetMode(AUTOMATIC);
+  motor2_pid.SetMode(AUTOMATIC);
 }
 
 void drive(int speed, char angle) {
@@ -134,8 +178,8 @@ void drive(int speed, char angle) {
     debug("invalid angle");
   }
 
-  set_motor_speed(motor1, current_motor1Speed);
-  set_motor_speed(motor2, current_motor2Speed);
+  set_motor_target_speed(motor1, current_motor1Speed);
+  set_motor_target_speed(motor2, current_motor2Speed);
 }
 void drive_speed(int speed) {
   drive(speed, current_angle);
@@ -169,21 +213,17 @@ void setup() {
   setup_motors();
   setup_motor_speed_counters();
   setup_bluetooth();
+  setup_pid();
 
   debug("roman ready.");
 
   set_motor_direction(motor1, forward);
   set_motor_direction(motor2, forward);
-  set_motor_speed(motor1, 0);
-  set_motor_speed(motor2, 0);
+  set_motor_target_speed(motor1, 0);
+  set_motor_target_speed(motor2, 0);
 }
 
-unsigned long lastCommandTime;
-int connected = 0;
-void loop() {
-  // put your main code here, to run repeatedly:
-
-  // bluetooth
+void parse_bluetooth_commands() {
   if ( Serial1.available() <= 0 ) {
 
     if ( connected == 1 && lastCommandTime+1000 < millis() ) {
@@ -214,5 +254,28 @@ void loop() {
   } else {
     debug("unknown command: " + input);
   }
+}
+
+void calculate_speed() {
+  unsigned long loop_time = millis() - last_loop_millis;
+  last_loop_millis = millis();
+
+  motor_1_input_speed = float(motor1Counter) / loop_time;
+  motor_2_input_speed = float(motor2Counter) / loop_time;
+  reset_motor_counters();
+}
+
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  calculate_speed();
+  // PID
+  motor1_pid.Compute();
+  motor2_pid.Compute();
+  write_motor_outputs(); // Apply the calculated PID parameters to the PWM output
+  // bluetooth
+  parse_bluetooth_commands();
+  // delay
+  delay(10); // implement delay to gather some motor rotation sensor changes
 }
 
