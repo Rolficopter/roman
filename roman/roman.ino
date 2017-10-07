@@ -31,10 +31,10 @@ unsigned long last_loop_millis = millis();
 double motor_1_input_speed = 0; // Input for PID
 double motor_2_input_speed = 0; // Input for PID
 // Motor PID
-double motor1_target_speed = 0; // change value of these to accelerate or decelrate the motor
-double motor2_target_speed = 0;
-PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor1_target_speed, 2, 5, 1, DIRECT);
-PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor2_target_speed, 2, 5, 1, DIRECT);
+double motor_1_target_speed = 1; // change value of these to accelerate or decelerate the motor
+double motor_2_target_speed = 1;
+PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor_1_target_speed, 2, 0, 0, DIRECT);
+PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor_2_target_speed, 2, 0, 0, DIRECT);
 
 // BT Control
 const int command_length = 8; // bytes
@@ -111,15 +111,19 @@ void set_motor_output_speed(motor_t motor, int value) {
 void write_motor_outputs() {
   set_motor_output_speed(motor1, motor_1_output_speed);
   set_motor_output_speed(motor2, motor_2_output_speed);
+  debug("motor_1_output_speed: ");
+  debug(motor_1_output_speed);
+  debug("motor_2_output_speed: ");
+  debug(motor_2_output_speed);
 }
 
-void set_motor_target_speed(motor_t motor, int value) {
+void set_motor_target_speed(motor_t motor, double value) {
   switch ( motor ) {
     case motor1:
-      motor1_target_speed = value;
+      motor_1_target_speed = value;
       break;
     case motor2:
-      motor2_target_speed = value;
+      motor_2_target_speed = value;
       break;
     default:
       return;
@@ -207,6 +211,10 @@ void debug(byte b) {
   debug(String(b));
 }
 
+void debug(double d) {
+  debug(String(d));
+}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -237,7 +245,7 @@ void parse_bluetooth_commands() {
   connected = 1;
 
   String input = Serial1.readStringUntil('\0');
-  debug("BT REC: " + input);
+  //debug("BT REC: " + input);
 
   int value = input.substring(1).toInt();
   if ( input.startsWith("s") ) {
@@ -258,24 +266,27 @@ void parse_bluetooth_commands() {
 
 void calculate_speed() {
   unsigned long loop_time = millis() - last_loop_millis;
+  if(loop_time < 100) return;
   last_loop_millis = millis();
-
   motor_1_input_speed = float(motor1Counter) / loop_time;
   motor_2_input_speed = float(motor2Counter) / loop_time;
   reset_motor_counters();
+  
 }
 
 
 void loop() {
   // put your main code here, to run repeatedly:
-  calculate_speed();
+  calculate_speed();  
   // PID
   motor1_pid.Compute();
   motor2_pid.Compute();
   write_motor_outputs(); // Apply the calculated PID parameters to the PWM output
+  //debug("motor_1_target_speed: ");
+  //debug(motor_1_target_speed);
+  //debug("motor_2_target_speed: ");
+  //debug(motor_2_target_speed);
   // bluetooth
   parse_bluetooth_commands();
-  // delay
-  delay(10); // implement delay to gather some motor rotation sensor changes
 }
 
