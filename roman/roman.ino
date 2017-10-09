@@ -1,5 +1,5 @@
 #include <PID_v1.h>
-
+#include <TimerOne.h>
 
 typedef enum {
   motor1,
@@ -27,14 +27,14 @@ volatile int motor2Counter = 0;
 double motor_2_output_speed = 0; // Set via PID
 
 // Speed Measurement
-unsigned long last_loop_millis = millis();
 double motor_1_input_speed = 0; // Input for PID
 double motor_2_input_speed = 0; // Input for PID
 // Motor PID
+const int motor_target_max = 20;
 double motor_1_target_speed = 1; // change value of these to accelerate or decelerate the motor
 double motor_2_target_speed = 1;
-PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor_1_target_speed, 2, 0, 0, DIRECT);
-PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor_2_target_speed, 2, 0, 0, DIRECT);
+PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor_1_target_speed, 20, 0, 0, DIRECT);
+PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor_2_target_speed, 20, 0, 0, DIRECT);
 
 // BT Control
 const int command_length = 8; // bytes
@@ -140,7 +140,16 @@ void intr_count_motor2_speed() {
 void setup_motor_speed_counters() {
   attachInterrupt(digitalPinToInterrupt(motor1SpeedMes), intr_count_motor1_speed, RISING);
   attachInterrupt(digitalPinToInterrupt(motor2SpeedMes), intr_count_motor2_speed, RISING);
+  Timer1.initialize(100 * 1000); // every 100 milliseconds
+  Timer1.attachInterrupt(measure_motor_speed);
 }
+
+void measure_motor_speed() {
+  motor_1_input_speed = motor1Counter * 100;
+  motor_2_input_speed = motor2Counter * 100;
+  reset_motor_counters();
+}
+
 void reset_motor_counters() {
   motor1Counter = 0;
   motor2Counter = 0;
@@ -180,6 +189,11 @@ void drive(int speed, char angle) {
     }
   } else {
     debug("invalid angle");
+  }
+
+  if(speed == 0) { // override PID for safety reasons
+    set_motor_output_speed(motor1, 0);
+    set_motor_output_speed(motor2, 0);
   }
 
   set_motor_target_speed(motor1, current_motor1Speed);
@@ -250,10 +264,10 @@ void parse_bluetooth_commands() {
   int value = input.substring(1).toInt();
   if ( input.startsWith("s") ) {
     if ( value >= 0 ) {
-      value = map(value, 0, 100, 0, 255);
+      value = map(value, 0, 100, 0, motor_target_max);
       drive_direction(forward);
     } else {
-      value = map(value, 0, -100, 0, 255);
+      value = map(value, 0, -100, 0, motor_target_max);
       drive_direction(backward);
     }
     drive_speed(value);
@@ -264,20 +278,8 @@ void parse_bluetooth_commands() {
   }
 }
 
-void calculate_speed() {
-  unsigned long loop_time = millis() - last_loop_millis;
-  if(loop_time < 100) return;
-  last_loop_millis = millis();
-  motor_1_input_speed = float(motor1Counter) / loop_time;
-  motor_2_input_speed = float(motor2Counter) / loop_time;
-  reset_motor_counters();
-  
-}
-
-
 void loop() {
   // put your main code here, to run repeatedly:
-  calculate_speed();  
   // PID
   motor1_pid.Compute();
   motor2_pid.Compute();
@@ -288,5 +290,6 @@ void loop() {
   //debug(motor_2_target_speed);
   // bluetooth
   parse_bluetooth_commands();
+  delay(10);
 }
 
