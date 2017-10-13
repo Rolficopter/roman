@@ -27,14 +27,14 @@ volatile int motor2Counter = 0;
 double motor_2_output_speed = 0; // Set via PID
 
 // Speed Measurement
-double motor_1_input_speed = 0; // Input for PID
-double motor_2_input_speed = 0; // Input for PID
+volatile double motor_1_input_speed = 0; // Input for PID
+volatile double motor_2_input_speed = 0; // Input for PID
 // Motor PID
 const int motor_target_max = 20;
 double motor_1_target_speed = 1; // change value of these to accelerate or decelerate the motor
 double motor_2_target_speed = 1;
-PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor_1_target_speed, 20, 0, 0, DIRECT);
-PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor_2_target_speed, 20, 0, 0, DIRECT);
+PID motor1_pid(&motor_1_input_speed, &motor_1_output_speed, &motor_1_target_speed, 20, 0, 5, DIRECT);
+PID motor2_pid(&motor_2_input_speed, &motor_2_output_speed, &motor_2_target_speed, 20, 0, 5, DIRECT);
 
 // BT Control
 const int command_length = 8; // bytes
@@ -109,12 +109,8 @@ void set_motor_output_speed(motor_t motor, int value) {
 }
 
 void write_motor_outputs() {
-  set_motor_output_speed(motor1, motor_1_output_speed);
-  set_motor_output_speed(motor2, motor_2_output_speed);
-  debug("motor_1_output_speed: ");
-  debug(motor_1_output_speed);
-  debug("motor_2_output_speed: ");
-  debug(motor_2_output_speed);
+  set_motor_output_speed(motor1, motor_1_target_speed == 0 ? 0 : motor_1_output_speed);
+  set_motor_output_speed(motor2, motor_2_target_speed == 0 ? 0 : motor_2_output_speed);
 }
 
 void set_motor_target_speed(motor_t motor, double value) {
@@ -145,8 +141,8 @@ void setup_motor_speed_counters() {
 }
 
 void measure_motor_speed() {
-  motor_1_input_speed = motor1Counter * 100;
-  motor_2_input_speed = motor2Counter * 100;
+  motor_1_input_speed = motor1Counter * 2;
+  motor_2_input_speed = motor2Counter * 2;
   reset_motor_counters();
 }
 
@@ -161,7 +157,9 @@ void setup_bluetooth() {
 
 void setup_pid() {
   motor1_pid.SetMode(AUTOMATIC);
+  motor1_pid.SetSampleTime(50);
   motor2_pid.SetMode(AUTOMATIC);
+  motor2_pid.SetSampleTime(50);
 }
 
 void drive(int speed, char angle) {
@@ -189,11 +187,6 @@ void drive(int speed, char angle) {
     }
   } else {
     debug("invalid angle");
-  }
-
-  if(speed == 0) { // override PID for safety reasons
-    set_motor_output_speed(motor1, 0);
-    set_motor_output_speed(motor2, 0);
   }
 
   set_motor_target_speed(motor1, current_motor1Speed);
@@ -281,8 +274,10 @@ void parse_bluetooth_commands() {
 void loop() {
   // put your main code here, to run repeatedly:
   // PID
+  noInterrupts(); // temporarily disable interrupts to be able to access the speed input without it changing
   motor1_pid.Compute();
   motor2_pid.Compute();
+  interrupts();
   write_motor_outputs(); // Apply the calculated PID parameters to the PWM output
   //debug("motor_1_target_speed: ");
   //debug(motor_1_target_speed);
